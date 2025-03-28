@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import type { FilterController } from "./filter-container";
 import {
   Command,
   CommandEmpty,
@@ -9,13 +8,14 @@ import {
   CommandList,
 } from "../command";
 import { Checkbox } from "../checkbox";
+import type { FilterDefinition } from "./filter-panel";
 
 type OptionFilterOption = {
   value: string;
   label: string;
 };
 
-export const optionFilter: FilterController<{
+export const optionFilterComponent: FilterDefinition<{
   options: OptionFilterOption[];
   value: string | undefined;
   onValueChange: (value: string | undefined) => void;

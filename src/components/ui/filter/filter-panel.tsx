@@ -1,5 +1,8 @@
-import { type LucideIcon, ArrowRight, Filter, X } from "lucide-react";
+import { type LucideIcon, ArrowRight, Filter } from "lucide-react";
+import { X } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+
+import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -7,24 +10,27 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "../command";
-import { Popover, PopoverContent, PopoverTrigger } from "../popover";
-import { Button } from "../button";
-import { Separator } from "../separator";
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
-export type BaseFilterMeta = Record<string, unknown>;
+export type FilterConfig = Record<string, unknown>;
 
-export type FilterController<TMeta extends BaseFilterMeta> = {
-  Display: React.FC<TMeta>;
-  Controller: React.FC<TMeta>;
+export type FilterDefinition<TConfig extends FilterConfig> = {
+  Display: React.FC<TConfig>;
+  Controller: React.FC<TConfig>;
 };
 
-export type FilterRegistry<TType extends string = string> = {
-  [K in TType]: FilterController<any>;
+export type FilterComponents<TType extends string = string> = {
+  [K in TType]: FilterDefinition<any>;
 };
 
-type FilterItemBaseFields = {
+type FilterItemBase = {
   label: string;
   icon: LucideIcon;
   isEnabled: boolean;
@@ -32,39 +38,41 @@ type FilterItemBaseFields = {
   remove: (() => void) | false;
 };
 
-export type FilterItem<TRegistry extends FilterRegistry> =
-  FilterItemBaseFields & FilterItemControllerFields<TRegistry>;
-
-type FilterItemControllerFields<TRegistry extends FilterRegistry> = {
-  [K in keyof TRegistry]: {
+type FilterItemTypeConfig<TComponents extends FilterComponents> = {
+  [K in keyof TComponents]: {
     type: K;
-    meta: TRegistry[K] extends FilterController<infer M> ? M : never;
+    config: TComponents[K] extends FilterDefinition<infer TConfig>
+      ? TConfig
+      : never;
   };
-}[keyof TRegistry];
+}[keyof TComponents];
 
-type FiltersProps<TRegistry extends FilterRegistry> = {
-  registry: TRegistry;
-  filters: FilterItem<TRegistry>[];
+export type FilterItem<TComponents extends FilterComponents> = FilterItemBase &
+  FilterItemTypeConfig<TComponents>;
+
+type FilterPanelProps<TComponents extends FilterComponents> = {
+  components: TComponents;
+  items: FilterItem<TComponents>[];
 };
 
-export function FilterContainer<TRegistry extends FilterRegistry>({
-  filters,
-  registry,
-}: FiltersProps<TRegistry>) {
+export function FilterPanel<TComponents extends FilterComponents>({
+  items,
+  components,
+}: FilterPanelProps<TComponents>) {
   return (
     <div className="flex w-full items-start justify-between gap-2">
       <div className="flex h-full w-full items-stretch gap-2">
-        <TableFilter filters={filters} registry={registry} />
-        <PropertyFilterList filters={filters} registry={registry} />
+        <FilterSelector items={items} components={components} />
+        <FilterChips items={items} components={components} />
       </div>
     </div>
   );
 }
 
-export function TableFilter<TRegistry extends FilterRegistry>({
-  filters,
-  registry,
-}: FiltersProps<TRegistry>) {
+export function FilterSelector<TComponents extends FilterComponents>({
+  items,
+  components,
+}: FilterPanelProps<TComponents>) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   const [selectedFilterLabel, setSelectedFilterLabel] = useState<
@@ -72,8 +80,8 @@ export function TableFilter<TRegistry extends FilterRegistry>({
   >(undefined);
   const selectedFilter = useMemo(() => {
     if (!selectedFilterLabel) return undefined;
-    return filters.find((filter) => filter.label === selectedFilterLabel);
-  }, [selectedFilterLabel, filters]);
+    return items.find((item) => item.label === selectedFilterLabel);
+  }, [selectedFilterLabel, items]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -88,20 +96,20 @@ export function TableFilter<TRegistry extends FilterRegistry>({
   }, [open]);
 
   const hasFilters = useMemo(() => {
-    for (const filter of filters) {
-      if (filter.isSet) {
+    for (const item of items) {
+      if (item.isSet) {
         return true;
       }
     }
-  }, [filters]);
+  }, [items]);
 
   const content = useMemo(() => {
     if (selectedFilter) {
-      const Component = registry[selectedFilter.type]?.Controller;
+      const Component = components[selectedFilter.type]?.Controller;
 
       if (!Component) return null;
 
-      return <Component {...selectedFilter.meta} />;
+      return <Component {...selectedFilter.config} />;
     }
 
     return (
@@ -115,10 +123,10 @@ export function TableFilter<TRegistry extends FilterRegistry>({
         <CommandEmpty>No results.</CommandEmpty>
         <CommandList className="max-h-fit">
           <CommandGroup>
-            {filters.map((filter) => (
-              <TableFilterMenuItem
-                key={filter.label}
-                filter={filter}
+            {items.map((item) => (
+              <FilterSelectorMenuItem
+                key={item.label}
+                item={item}
                 setFilter={setSelectedFilterLabel}
               />
             ))}
@@ -126,7 +134,7 @@ export function TableFilter<TRegistry extends FilterRegistry>({
         </CommandList>
       </Command>
     );
-  }, [selectedFilter, value, filters, registry]);
+  }, [selectedFilter, value, items, components]);
 
   return (
     <Popover
@@ -152,23 +160,23 @@ export function TableFilter<TRegistry extends FilterRegistry>({
   );
 }
 
-export function TableFilterMenuItem<TRegistry extends FilterRegistry>({
-  filter,
+export function FilterSelectorMenuItem<TComponents extends FilterComponents>({
+  item,
   setFilter,
 }: {
-  filter: FilterItem<TRegistry>;
+  item: FilterItem<TComponents>;
   setFilter: (value: string) => void;
 }) {
   return (
     <CommandItem
-      onSelect={() => setFilter(filter.label)}
+      onSelect={() => setFilter(item.label)}
       className="group"
-      disabled={!filter.isEnabled}
+      disabled={!item.isEnabled}
     >
       <div className="flex w-full items-center justify-between">
         <div className="inline-flex items-center gap-1.5">
-          <filter.icon strokeWidth={2.25} className="size-4" />
-          <span>{filter.label}</span>
+          <item.icon strokeWidth={2.25} className="size-4" />
+          <span>{item.label}</span>
         </div>
         <ArrowRight className="size-4 opacity-0 group-aria-selected:opacity-100" />
       </div>
@@ -176,51 +184,46 @@ export function TableFilterMenuItem<TRegistry extends FilterRegistry>({
   );
 }
 
-export function PropertyFilterList<TRegistry extends FilterRegistry>({
-  filters,
-  registry,
-}: FiltersProps<TRegistry>) {
+export function FilterChips<TComponents extends FilterComponents>({
+  items,
+  components,
+}: FilterPanelProps<TComponents>) {
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs">
-      {filters.map((filter) => {
-        // Skip if no filter value
-        if (!filter.isSet) return null;
+      {items.map((item) => {
+        // Skip if no item value
+        if (!item.isSet) return null;
 
         return (
-          <PropertyFilterListItem
-            registry={registry}
-            filter={filter}
-            key={filter.label}
-          />
+          <FilterChip components={components} item={item} key={item.label} />
         );
       })}
     </div>
   );
 }
 
-// Generic render function for a filter with type-safe value
-export function PropertyFilterListItem<TRegistry extends FilterRegistry>({
-  filter,
-  registry,
+export function FilterChip<TComponents extends FilterComponents>({
+  item,
+  components,
 }: {
-  filter: FilterItem<TRegistry>;
-  registry: TRegistry;
+  item: FilterItem<TComponents>;
+  components: TComponents;
 }) {
   return (
     <div
-      key={`filter-${filter.label}`}
+      key={`item-${item.label}`}
       className="flex h-7 items-center rounded-2xl border border-border bg-background shadow-xs"
     >
-      <PropertyFilterSubject filter={filter} />
+      <FilterChipLabel item={item} />
       <Separator orientation="vertical" />
-      <PropertyFilterValueController filter={filter} registry={registry} />
-      {filter.remove !== false ? (
+      <FilterChipValue item={item} components={components} />
+      {item.remove !== false ? (
         <>
           <Separator orientation="vertical" />
           <Button
             variant="ghost"
             className="rounded-none rounded-r-2xl text-xs w-7 h-full"
-            onClick={() => filter.remove && filter.remove()}
+            onClick={() => item.remove && item.remove()}
           >
             <X className="size-4 -translate-x-0.5" />
           </Button>
@@ -230,36 +233,29 @@ export function PropertyFilterListItem<TRegistry extends FilterRegistry>({
   );
 }
 
-/****** Property Filter Subject ******/
-
-export function PropertyFilterSubject<TRegistry extends FilterRegistry>({
-  filter,
+export function FilterChipLabel<TComponents extends FilterComponents>({
+  item,
 }: {
-  filter: FilterItem<TRegistry>;
+  item: FilterItem<TComponents>;
 }) {
   return (
     <span className="flex select-none items-center gap-1 whitespace-nowrap px-2 font-medium">
-      {filter.icon ? <filter.icon className="size-4 stroke-[2.25px]" /> : null}
-      <span>{filter.label}</span>
+      {item.icon ? <item.icon className="size-4 stroke-[2.25px]" /> : null}
+      <span>{item.label}</span>
     </span>
   );
 }
 
-/****** Property Filter Value ******/
-
-export function PropertyFilterValueController<
-  TRegistry extends FilterRegistry
->({
-  filter,
-  registry,
+export function FilterChipValue<TComponents extends FilterComponents>({
+  item,
+  components,
 }: {
-  filter: FilterItem<TRegistry>;
-  registry: TRegistry;
+  item: FilterItem<TComponents>;
+  components: TComponents;
 }) {
-  const Display = registry[filter.type]?.Display;
-  const Controller = registry[filter.type]?.Controller;
+  const itemComponents = components[item.type];
 
-  if (!Controller || !Display) return null;
+  if (!itemComponents) return null;
 
   return (
     <Popover>
@@ -268,7 +264,7 @@ export function PropertyFilterValueController<
           variant="ghost"
           className="m-0 h-full w-fit whitespace-nowrap rounded-none p-0 px-2 text-xs"
         >
-          <Display {...filter.meta} />
+          <itemComponents.Display {...item.config} />
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -276,7 +272,7 @@ export function PropertyFilterValueController<
         side="bottom"
         className="w-fit p-0 origin-(--radix-popover-content-transform-origin)"
       >
-        <Controller {...filter.meta} />
+        <itemComponents.Controller {...item.config} />
       </PopoverContent>
     </Popover>
   );

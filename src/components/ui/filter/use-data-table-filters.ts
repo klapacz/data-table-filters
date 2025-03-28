@@ -1,8 +1,8 @@
 import { type Table, type RowData } from "@tanstack/react-table";
 import { type LucideIcon } from "lucide-react";
 import React, { useMemo } from "react";
-import type { FilterItem } from "./filter-container";
-import { optionFilter } from "./filters";
+import type { FilterItem } from "./filter-panel";
+import { optionFilterComponent } from "./filter-components";
 
 export interface ColumnOption {
   /* The label to display for the option. */
@@ -43,17 +43,17 @@ declare module "@tanstack/react-table" {
   }
 }
 
-type DataTableFiltersRegistry = {
-  option: typeof optionFilter;
+type DataTableFilterComponents = {
+  option: typeof optionFilterComponent;
 };
 
-export const dataTableFiltersRegistry: DataTableFiltersRegistry = {
-  option: optionFilter,
+export const dataTableFilterComponents: DataTableFilterComponents = {
+  option: optionFilterComponent,
 };
 
-export type DataTableFilterItem = FilterItem<DataTableFiltersRegistry>;
+export type DataTableFilterItem = FilterItem<DataTableFilterComponents>;
 
-export function useDataTableFiltersDef<TData>({
+export function useDataTableFilterItems<TData>({
   table,
 }: {
   table: Table<TData>;
@@ -91,7 +91,7 @@ export function useDataTableFiltersDef<TData>({
 
         return {
           type: "option",
-          meta: {
+          config: {
             options,
             value,
             onValueChange(value) {

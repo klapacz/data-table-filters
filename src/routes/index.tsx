@@ -12,10 +12,10 @@ import {
 import { faker } from "@faker-js/faker";
 import { MailIcon, User2Icon } from "lucide-react";
 import {
-  dataTableFiltersRegistry,
-  useDataTableFiltersDef,
-} from "@/components/ui/data-table-filters/use-data-table-filters";
-import { FilterContainer } from "@/components/ui/data-table-filters/filter-container";
+  dataTableFilterComponents,
+  useDataTableFilterItems,
+} from "@/components/ui/filter/use-data-table-filters";
+import { FilterPanel } from "@/components/ui/filter/filter-panel";
 import {
   Table,
   TableBody,
@@ -80,11 +80,14 @@ function App() {
     getFacetedUniqueValues: getFacetedUniqueValues(),
   });
 
-  const filters = useDataTableFiltersDef({ table });
+  const dataTableFilterItems = useDataTableFilterItems({ table });
 
   return (
     <div className="container mx-auto p-4 space-y-4">
-      <FilterContainer filters={filters} registry={dataTableFiltersRegistry} />
+      <FilterPanel
+        items={dataTableFilterItems}
+        components={dataTableFilterComponents}
+      />
 
       <div className="rounded-md border">
         <Table>
